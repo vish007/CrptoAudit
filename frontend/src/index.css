@@ -1,0 +1,223 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8f9fa;
+  color: #1f2937;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Custom component styles */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 31, 63, 0.05);
+}
+
+.gradient-navy-gold {
+  background: linear-gradient(135deg, #001f3f 0%, #003d7a 50%, #d4af37 100%);
+}
+
+.gradient-emerald {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.gradient-red-warning {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.fade-out {
+  animation: fadeOut 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 10px rgba(212, 175, 55, 0);
+  }
+}
+
+/* Form styles */
+.form-input {
+  @apply w-full px-4 py-2 border border-simplyfi-border-light rounded-lg text-simplyfi-text-dark bg-white transition-colors duration-200;
+}
+
+.form-input:focus {
+  @apply outline-none border-simplyfi-gold ring-2 ring-simplyfi-gold ring-opacity-20;
+}
+
+.form-input:disabled {
+  @apply bg-gray-100 text-simplyfi-text-muted cursor-not-allowed;
+}
+
+/* Table styles */
+.table-row {
+  @apply border-b border-simplyfi-border-light hover:bg-gray-50 transition-colors duration-150;
+}
+
+.table-row:hover {
+  background-color: rgba(0, 31, 63, 0.02);
+}
+
+/* Badge styles */
+.badge-base {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+}
+
+.badge-success {
+  @apply badge-base bg-emerald-100 text-emerald-800;
+}
+
+.badge-warning {
+  @apply badge-base bg-orange-100 text-orange-800;
+}
+
+.badge-error {
+  @apply badge-base bg-red-100 text-red-800;
+}
+
+.badge-info {
+  @apply badge-base bg-blue-100 text-blue-800;
+}
+
+/* Button styles */
+.btn-base {
+  @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply btn-base bg-simplyfi-navy text-white hover:bg-simplyfi-dark-navy shadow-md hover:shadow-lg;
+}
+
+.btn-secondary {
+  @apply btn-base bg-gray-200 text-simplyfi-text-dark hover:bg-gray-300;
+}
+
+.btn-accent {
+  @apply btn-base bg-simplyfi-gold text-simplyfi-dark-navy hover:bg-simplyfi-light-gold shadow-md hover:shadow-lg;
+}
+
+.btn-danger {
+  @apply btn-base bg-simplyfi-red-warning text-white hover:bg-red-600;
+}
+
+.btn-ghost {
+  @apply btn-base bg-transparent text-simplyfi-navy hover:bg-gray-100;
+}
+
+/* Link styles */
+.link-primary {
+  @apply text-simplyfi-navy font-medium hover:text-simplyfi-light-navy transition-colors duration-200;
+}
+
+.link-accent {
+  @apply text-simplyfi-gold font-medium hover:text-simplyfi-light-gold transition-colors duration-200;
+}
+
+/* Card styles */
+.card-base {
+  @apply bg-white rounded-xl border border-simplyfi-border-light shadow-sm overflow-hidden;
+}
+
+.card-hover {
+  @apply card-base hover:shadow-md hover:border-simplyfi-gold/30 transition-all duration-300;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40;
+}
+
+/* Toast notification styles */
+.toast-success {
+  @apply bg-simplyfi-emerald text-white;
+}
+
+.toast-error {
+  @apply bg-simplyfi-red-warning text-white;
+}
+
+.toast-info {
+  @apply bg-simplyfi-navy text-white;
+}
+
+.toast-warning {
+  @apply bg-simplyfi-orange-warning text-white;
+}
