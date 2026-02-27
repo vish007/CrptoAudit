@@ -1,0 +1,409 @@
+groups:
+  - name: simplyfi_por_alerts
+    interval: 30s
+    rules:
+      # HTTP and API Alerts
+      - alert: HighErrorRate
+        expr: |
+          (rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "High error rate detected (>1%)"
+          description: "{{ $value | humanizePercentage }} of requests are returning 5xx errors. Check logs immediately."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: "High API latency detected (p95 > 1s)"
+          description: "95th percentile latency is {{ $value | humanizeDuration }}. Investigate performance bottlenecks."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      - alert: VeryHighLatency
+        expr: |
+          histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) > 3
+        for: 5m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "Very high API latency detected (p99 > 3s)"
+          description: "99th percentile latency is {{ $value | humanizeDuration }}. Immediate action required."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      # Reserve Ratio and Blockchain Alerts
+      - alert: UnderReservedAsset
+        expr: |
+          por_reserve_ratio < 1.0
+        for: 15m
+        labels:
+          severity: critical
+          service: por-core
+        annotations:
+          summary: "Asset under-reserved detected"
+          description: "Reserve ratio is {{ $value }}. Immediate review of reserve verification required."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      - alert: LowReserveRatio
+        expr: |
+          por_reserve_ratio < 1.05
+        for: 30m
+        labels:
+          severity: warning
+          service: por-core
+        annotations:
+          summary: "Low reserve ratio warning"
+          description: "Reserve ratio is {{ $value }}. Monitor closely for compliance."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      - alert: BlockchainAPIDown
+        expr: |
+          up{job="blockchain-api"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: blockchain
+        annotations:
+          summary: "Blockchain API is unreachable"
+          description: "Cannot connect to blockchain API. Verification operations may be impacted."
+          runbook: "https://wiki.example.com/runbooks/blockchain-api-down"
+
+      - alert: BlockchainVerificationFailure
+        expr: |
+          rate(por_blockchain_verifications_failed[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: blockchain
+        annotations:
+          summary: "Blockchain verification failures detected"
+          description: "{{ $value | humanize }} verification failures per second. Check blockchain connectivity."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      # Worker and Queue Alerts
+      - alert: CeleryWorkerDown
+        expr: |
+          celery_worker_up == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: workers
+        annotations:
+          summary: "Celery worker is down"
+          description: "Worker {{ $labels.worker_name }} is offline. Task processing may be delayed."
+          runbook: "https://wiki.example.com/runbooks/celery-worker-down"
+
+      - alert: HighTaskQueueDepth
+        expr: |
+          celery_queue_length > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: workers
+        annotations:
+          summary: "Task queue depth is high"
+          description: "{{ $value | humanize }} tasks pending. Scale workers or investigate long-running tasks."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      - alert: TaskQueueBacklog
+        expr: |
+          celery_queue_length > 5000
+        for: 5m
+        labels:
+          severity: critical
+          service: workers
+        annotations:
+          summary: "Critical task queue backlog"
+          description: "{{ $value | humanize }} tasks in queue. Immediate worker scaling required."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      # Database Alerts
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          (pg_stat_activity_count / pg_settings_max_connections) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "Database connection pool exhausted"
+          description: "{{ $value | humanizePercentage }} of connections in use. Close idle connections or increase pool size."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      - alert: HighDatabaseConnections
+        expr: |
+          (pg_stat_activity_count / pg_settings_max_connections) > 0.75
+        for: 10m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High database connection utilization"
+          description: "{{ $value | humanizePercentage }} of connections in use. Monitor application connection handling."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      - alert: DatabaseSlowQueries
+        expr: |
+          rate(pg_slow_queries_total[5m]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "{{ $value | humanize }} slow queries per second. Review query optimization."
+          runbook: "https://wiki.example.com/runbooks/database-slow-queries"
+
+      - alert: DatabaseDeadlocks
+        expr: |
+          increase(pg_deadlocks_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database deadlocks detected"
+          description: "{{ $value | humanize }} deadlocks in the last 5 minutes. Review transaction isolation."
+          runbook: "https://wiki.example.com/runbooks/database-deadlocks"
+
+      # Model and AI Alerts
+      - alert: ModelDriftDetected
+        expr: |
+          por_feature_psi > 0.2
+        for: 30m
+        labels:
+          severity: warning
+          service: ai-models
+        annotations:
+          summary: "Feature drift detected in model"
+          description: "Population Stability Index {{ $value }} exceeds threshold. Model retraining may be needed."
+          dashboard: "http://localhost:3000/d/simplyfi-por-ai-models"
+
+      - alert: SeveraModelDrift
+        expr: |
+          por_feature_psi > 0.3
+        for: 15m
+        labels:
+          severity: critical
+          service: ai-models
+        annotations:
+          summary: "Severe feature drift detected"
+          description: "PSI {{ $value }} indicates significant distribution shift. Retrain model immediately."
+          dashboard: "http://localhost:3000/d/simplyfi-por-ai-models"
+
+      - alert: ConceptDriftDetected
+        expr: |
+          por_label_distribution_shift > 0.25
+        for: 30m
+        labels:
+          severity: warning
+          service: ai-models
+        annotations:
+          summary: "Concept drift detected in predictions"
+          description: "Label distribution shift {{ $value }} detected. Model performance may degrade."
+          dashboard: "http://localhost:3000/d/simplyfi-por-ai-models"
+
+      - alert: ModelAccuracyDegradation
+        expr: |
+          rate(por_anomaly_detection_accuracy[1h]) < -0.05
+        for: 1h
+        labels:
+          severity: warning
+          service: ai-models
+        annotations:
+          summary: "Model accuracy degradation detected"
+          description: "Model accuracy trending down {{ $value | humanizePercentage }}/hour. Investigate data quality."
+          dashboard: "http://localhost:3000/d/simplyfi-por-ai-models"
+
+      - alert: LLMResponseLatencyHigh
+        expr: |
+          histogram_quantile(0.95, rate(por_llm_response_latency_seconds_bucket[5m])) > 10
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-models
+        annotations:
+          summary: "LLM response latency is high"
+          description: "p95 LLM latency is {{ $value | humanizeDuration }}. Check LLM service health."
+          dashboard: "http://localhost:3000/d/simplyfi-por-ai-models"
+
+      # Reconciliation Alerts
+      - alert: ReconciliationVarianceHigh
+        expr: |
+          por_reconciliation_variance > 0.005
+        for: 30m
+        labels:
+          severity: warning
+          service: por-core
+        annotations:
+          summary: "High reconciliation variance detected"
+          description: "Reconciliation variance is {{ $value | humanizePercentage }}. Investigate data discrepancies."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      - alert: ReconciliationVarianceCritical
+        expr: |
+          por_reconciliation_variance > 0.01
+        for: 15m
+        labels:
+          severity: critical
+          service: por-core
+        annotations:
+          summary: "Critical reconciliation variance"
+          description: "Variance {{ $value | humanizePercentage }} exceeds tolerance. Immediate investigation required."
+          runbook: "https://wiki.example.com/runbooks/reconciliation-failure"
+
+      - alert: MerkleTreeGenerationFailed
+        expr: |
+          increase(por_merkle_tree_generation_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: por-core
+        annotations:
+          summary: "Merkle tree generation failure"
+          description: "Failed to generate merkle tree. Verification operations are blocked."
+          runbook: "https://wiki.example.com/runbooks/merkle-tree-failure"
+
+      - alert: MerkleTreeGenerationSlow
+        expr: |
+          por_merkle_tree_generation_duration_seconds > 60
+        for: 10m
+        labels:
+          severity: warning
+          service: por-core
+        annotations:
+          summary: "Merkle tree generation is slow"
+          description: "Generation took {{ $value | humanizeDuration }}. Optimize tree construction or increase resources."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      # Infrastructure Alerts
+      - alert: DiskSpaceWarning
+        expr: |
+          (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.2
+        for: 15m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "{{ $value | humanizePercentage }} of disk space remaining on {{ $labels.device }}."
+          runbook: "https://wiki.example.com/runbooks/disk-space"
+
+      - alert: DiskSpaceCritical
+        expr: |
+          (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Critical disk space on {{ $labels.instance }}"
+          description: "{{ $value | humanizePercentage }} of disk space remaining. Immediate cleanup required."
+          runbook: "https://wiki.example.com/runbooks/disk-space"
+
+      - alert: RedisMemoryHigh
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "{{ $value | humanizePercentage }} of Redis memory in use. Consider eviction policy adjustment."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      - alert: RedisMemoryExhausted
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          service: cache
+        annotations:
+          summary: "Redis memory nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of Redis memory in use. OOM errors imminent."
+          runbook: "https://wiki.example.com/runbooks/redis-memory"
+
+      - alert: CacheMissRateHigh
+        expr: |
+          (1 - (redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total))) > 0.5
+        for: 30m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "High cache miss rate"
+          description: "Cache hit rate is {{ humanize (1 - $value) | humanizePercentage }}. Review cache key strategy."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      # SSL/TLS Certificate Alerts
+      - alert: CertificateExpiringSoon
+        expr: |
+          (tls_certificate_expiration_timestamp - time()) < 2592000
+        for: 1h
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "TLS certificate expiring soon"
+          description: "Certificate for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}. Schedule renewal."
+          runbook: "https://wiki.example.com/runbooks/certificate-expiry"
+
+      - alert: CertificateExpired
+        expr: |
+          (tls_certificate_expiration_timestamp - time()) < 0
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "TLS certificate has expired"
+          description: "Certificate for {{ $labels.instance }} has expired. Immediate renewal required."
+          runbook: "https://wiki.example.com/runbooks/certificate-expiry"
+
+      # Engagement Alerts
+      - alert: NoActiveEngagements
+        expr: |
+          por_active_engagements == 0
+        for: 30m
+        labels:
+          severity: warning
+          service: por-core
+        annotations:
+          summary: "No active engagements"
+          description: "Platform has no active audit engagements for {{ $value }}. Check if this is expected."
+          dashboard: "http://localhost:3000/d/simplyfi-por-main"
+
+      # General Health Alerts
+      - alert: ServiceDown
+        expr: |
+          up == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.instance }} is unreachable. Immediate investigation required."
+          runbook: "https://wiki.example.com/runbooks/service-down"
+
+      - alert: PrometheusScrapeFailed
+        expr: |
+          up == 0 and job == "prometheus"
+        for: 5m
+        labels:
+          severity: critical
+          service: monitoring
+        annotations:
+          summary: "Prometheus scrape failed"
+          description: "Prometheus cannot scrape target {{ $labels.instance }}. Monitoring may be incomplete."
+          runbook: "https://wiki.example.com/runbooks/prometheus-scrape-failed"

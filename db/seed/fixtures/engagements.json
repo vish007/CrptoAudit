@@ -1,0 +1,104 @@
+{
+  "engagements": [
+    {
+      "id": "e60e8400-e29b-41d4-a716-446655440001",
+      "vasp_name": "Kraken",
+      "vasp_tenant_id": "550e8400-e29b-41d4-a716-446655440010",
+      "auditor_name": "Big4 Auditors LLP",
+      "auditor_tenant_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "completed",
+      "audit_date": "2024-01-15",
+      "engagement_type": "full_audit",
+      "scope": {
+        "assets": ["BTC", "ETH", "USDT", "USDC", "SOL"],
+        "blockchains": ["bitcoin", "ethereum", "solana"]
+      },
+      "notes": "Initial PoR audit for Kraken - comprehensive review of reserves and customer liabilities",
+      "total_assets_usd": 15234567.89,
+      "asset_count": 5,
+      "wallet_count": 32,
+      "customer_count": 4250,
+      "reserve_ratio": 102.3
+    },
+    {
+      "id": "e60e8400-e29b-41d4-a716-446655440002",
+      "vasp_name": "Coinbase",
+      "vasp_tenant_id": "550e8400-e29b-41d4-a716-446655440011",
+      "auditor_name": "Big4 Auditors LLP",
+      "auditor_tenant_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "reporting",
+      "audit_date": "2024-02-01",
+      "engagement_type": "full_audit",
+      "scope": {
+        "assets": ["BTC", "ETH", "USDT", "USDC", "BNB"],
+        "blockchains": ["bitcoin", "ethereum", "binance-smart-chain"]
+      },
+      "notes": "Coinbase Q1 2024 PoR - Final verification and report generation underway",
+      "total_assets_usd": 18567890.12,
+      "asset_count": 5,
+      "wallet_count": 45,
+      "customer_count": 6700,
+      "reserve_ratio": 103.1
+    },
+    {
+      "id": "e60e8400-e29b-41d4-a716-446655440003",
+      "vasp_name": "Celsius Network",
+      "vasp_tenant_id": "550e8400-e29b-41d4-a716-446655440012",
+      "auditor_name": "Crypto Compliance Partners",
+      "auditor_tenant_id": "550e8400-e29b-41d4-a716-446655440002",
+      "status": "verification",
+      "audit_date": "2024-02-10",
+      "engagement_type": "full_audit",
+      "scope": {
+        "assets": ["BTC", "ETH", "DAI", "USDC"],
+        "blockchains": ["ethereum"]
+      },
+      "notes": "Celsius Network DeFi reserve audit - Verification of Merkle tree and segregation",
+      "total_assets_usd": 8123456.34,
+      "asset_count": 4,
+      "wallet_count": 28,
+      "customer_count": 1800,
+      "reserve_ratio": 101.8
+    },
+    {
+      "id": "e60e8400-e29b-41d4-a716-446655440004",
+      "vasp_name": "Kraken",
+      "vasp_tenant_id": "550e8400-e29b-41d4-a716-446655440010",
+      "auditor_name": "Crypto Compliance Partners",
+      "auditor_tenant_id": "550e8400-e29b-41d4-a716-446655440002",
+      "status": "data_collection",
+      "audit_date": "2024-02-20",
+      "engagement_type": "full_audit",
+      "scope": {
+        "assets": ["BTC", "ETH", "USDT", "XRP", "ADA"],
+        "blockchains": ["bitcoin", "ethereum", "ripple", "cardano"]
+      },
+      "notes": "Kraken Q2 2024 interim audit - Currently collecting wallet and liability data",
+      "total_assets_usd": 22345678.56,
+      "asset_count": 5,
+      "wallet_count": 62,
+      "customer_count": 8500,
+      "reserve_ratio": null
+    },
+    {
+      "id": "e60e8400-e29b-41d4-a716-446655440005",
+      "vasp_name": "Coinbase",
+      "vasp_tenant_id": "550e8400-e29b-41d4-a716-446655440011",
+      "auditor_name": "Big4 Auditors LLP",
+      "auditor_tenant_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "planning",
+      "audit_date": "2024-03-15",
+      "engagement_type": "full_audit",
+      "scope": {
+        "assets": ["BTC", "ETH", "SOL", "MATIC"],
+        "blockchains": ["bitcoin", "ethereum", "solana", "polygon"]
+      },
+      "notes": "Coinbase Special Engagement - Audit scope and procedures being finalized",
+      "total_assets_usd": 12987654.78,
+      "asset_count": 4,
+      "wallet_count": 38,
+      "customer_count": 3200,
+      "reserve_ratio": null
+    }
+  ]
+}

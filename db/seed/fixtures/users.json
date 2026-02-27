@@ -1,0 +1,174 @@
+{
+  "users": [
+    {
+      "id": "650e8400-e29b-41d4-a716-446655440001",
+      "email": "admin1@simplyfi.io",
+      "first_name": "Sarah",
+      "last_name": "Johnson",
+      "role": "System Administrator",
+      "tenant_id": null,
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "650e8400-e29b-41d4-a716-446655440002",
+      "email": "admin2@simplyfi.io",
+      "first_name": "Michael",
+      "last_name": "Chen",
+      "role": "System Administrator",
+      "tenant_id": null,
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "650e8400-e29b-41d4-a716-446655440003",
+      "email": "admin3@simplyfi.io",
+      "first_name": "Emma",
+      "last_name": "Williams",
+      "role": "System Administrator",
+      "tenant_id": null,
+      "status": "active",
+      "mfa_enabled": false
+    },
+    {
+      "id": "650e8400-e29b-41d4-a716-446655440004",
+      "email": "admin4@simplyfi.io",
+      "first_name": "David",
+      "last_name": "Martinez",
+      "role": "System Administrator",
+      "tenant_id": null,
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "650e8400-e29b-41d4-a716-446655440005",
+      "email": "admin5@simplyfi.io",
+      "first_name": "Lisa",
+      "last_name": "Anderson",
+      "role": "System Administrator",
+      "tenant_id": null,
+      "status": "active",
+      "mfa_enabled": false
+    },
+    {
+      "id": "750e8400-e29b-41d4-a716-446655440001",
+      "email": "auditor1@big4.io",
+      "first_name": "John",
+      "last_name": "Smith",
+      "role": "Audit Manager",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "750e8400-e29b-41d4-a716-446655440002",
+      "email": "auditor2@big4.io",
+      "first_name": "Jennifer",
+      "last_name": "Davis",
+      "role": "Audit Senior",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "750e8400-e29b-41d4-a716-446655440003",
+      "email": "auditor3@big4.io",
+      "first_name": "Robert",
+      "last_name": "Brown",
+      "role": "Audit Junior",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "active",
+      "mfa_enabled": false
+    },
+    {
+      "id": "750e8400-e29b-41d4-a716-446655440004",
+      "email": "auditor4@big4.io",
+      "first_name": "Patricia",
+      "last_name": "Garcia",
+      "role": "Audit Senior",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "750e8400-e29b-41d4-a716-446655440005",
+      "email": "auditor5@big4.io",
+      "first_name": "Charles",
+      "last_name": "Rodriguez",
+      "role": "Audit Junior",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "active",
+      "mfa_enabled": false
+    },
+    {
+      "id": "750e8400-e29b-41d4-a716-446655440006",
+      "email": "auditor1@crypto-compliance.io",
+      "first_name": "Susan",
+      "last_name": "Taylor",
+      "role": "Audit Manager",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440002",
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "850e8400-e29b-41d4-a716-446655440001",
+      "email": "compliance@kraken.io",
+      "first_name": "Thomas",
+      "last_name": "Walker",
+      "role": "VASP Compliance Officer",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440010",
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "850e8400-e29b-41d4-a716-446655440002",
+      "email": "audit@kraken.io",
+      "first_name": "Jessica",
+      "last_name": "Martin",
+      "role": "VASP Compliance Officer",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440010",
+      "status": "active",
+      "mfa_enabled": false
+    },
+    {
+      "id": "850e8400-e29b-41d4-a716-446655440003",
+      "email": "treasury@kraken.io",
+      "first_name": "James",
+      "last_name": "Clark",
+      "role": "VASP Treasury Manager",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440010",
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "850e8400-e29b-41d4-a716-446655440004",
+      "email": "compliance@coinbase.io",
+      "first_name": "Nicole",
+      "last_name": "Lewis",
+      "role": "VASP Compliance Officer",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440011",
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "a50e8400-e29b-41d4-a716-446655440001",
+      "email": "supervisor1@fca.gov.uk",
+      "first_name": "Aiden",
+      "last_name": "Ford",
+      "role": "Regulatory Supervisor",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440020",
+      "status": "active",
+      "mfa_enabled": true
+    },
+    {
+      "id": "a50e8400-e29b-41d4-a716-446655440002",
+      "email": "supervisor2@fca.gov.uk",
+      "first_name": "Beverly",
+      "last_name": "Gay",
+      "role": "Regulatory Supervisor",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440020",
+      "status": "active",
+      "mfa_enabled": false
+    }
+  ]
+}

@@ -1,0 +1,4260 @@
+openapi: 3.1.0
+info:
+  title: SimplyFI Proof of Reserves Audit Platform API
+  description: Comprehensive API for crypto asset auditing, Proof of Reserves verification, and compliance reporting
+  version: 1.0.0
+  contact:
+    name: SimplyFI Support
+    email: api-support@simplyfi.io
+  license:
+    name: Proprietary
+    url: https://simplyfi.io/license
+
+servers:
+  - url: https://api.simplyfi.io/api/v1
+    description: Production API
+  - url: http://localhost:3001/api/v1
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Authentication and authorization
+  - name: Users
+    description: User management
+  - name: Tenants
+    description: Tenant/organization management
+  - name: Engagements
+    description: Audit engagement management
+  - name: Assets
+    description: Crypto asset management
+  - name: Reserves
+    description: Reserve verification and ratios
+  - name: Merkle
+    description: Merkle tree generation and verification
+  - name: Blockchain
+    description: Blockchain verification endpoints
+  - name: Reports
+    description: Report generation and management
+  - name: AI
+    description: AI-powered analysis and insights
+  - name: Admin
+    description: Administrative operations
+  - name: Onboarding
+    description: VASP onboarding workflows
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Error Schemas
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: INVALID_REQUEST
+        message:
+          type: string
+          example: Invalid request parameters
+        details:
+          type: object
+          additionalProperties: true
+
+    ValidationError:
+      type: object
+      required:
+        - code
+        - message
+        - errors
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Validation failed
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    # Pagination
+    PaginationMeta:
+      type: object
+      required:
+        - page
+        - per_page
+        - total
+        - total_pages
+      properties:
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 150
+        total_pages:
+          type: integer
+          example: 8
+
+    PaginatedResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # Auth Schemas
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: SecurePassword123!
+        mfa_code:
+          type: string
+          description: Optional MFA code if user has MFA enabled
+          example: "123456"
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - first_name
+        - last_name
+        - company
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 12
+        first_name:
+          type: string
+        last_name:
+          type: string
+        company:
+          type: string
+        tenant_id:
+          type: string
+          format: uuid
+          description: Optional for VASP users joining existing tenant
+
+    Token:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Seconds until token expiration
+          example: 3600
+        refresh_token:
+          type: string
+          description: Optional refresh token for obtaining new access tokens
+        mfa_required:
+          type: boolean
+          description: Whether MFA is required to complete login
+          example: false
+
+    MFASetupRequest:
+      type: object
+      required:
+        - method
+      properties:
+        method:
+          type: string
+          enum: [totp, sms]
+          example: totp
+
+    MFASetupResponse:
+      type: object
+      required:
+        - secret
+        - qr_code
+      properties:
+        secret:
+          type: string
+          description: Base32 encoded TOTP secret
+        qr_code:
+          type: string
+          format: binary
+          description: QR code for authenticator app
+        backup_codes:
+          type: array
+          items:
+            type: string
+          description: One-time backup codes
+
+    MFAVerifyRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          example: "123456"
+
+    # User Schemas
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - first_name
+        - last_name
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        tenant_id:
+          type: string
+          format: uuid
+        mfa_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_login_at:
+          type: string
+          format: date-time
+
+    UserCreate:
+      type: object
+      required:
+        - email
+        - password
+        - first_name
+        - last_name
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 12
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+
+    UserUpdate:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+
+    UserResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+
+    # Tenant Schemas
+    Tenant:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Kraken
+        type:
+          type: string
+          enum: [vasp, auditor, regulator]
+          example: vasp
+        vara_license_number:
+          type: string
+          description: VARA license for VASP tenants
+        description:
+          type: string
+        logo_url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+        member_count:
+          type: integer
+        settings:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TenantCreate:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [vasp, auditor, regulator]
+        vara_license_number:
+          type: string
+        description:
+          type: string
+        logo_url:
+          type: string
+          format: uri
+
+    TenantUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        logo_url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+
+    TenantResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Tenant'
+
+    TenantMember:
+      type: object
+      required:
+        - id
+        - email
+        - first_name
+        - last_name
+        - roles
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        joined_at:
+          type: string
+          format: date-time
+
+    # Role & Permission Schemas
+    Permission:
+      type: object
+      required:
+        - id
+        - name
+        - resource
+        - action
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: view_engagement
+        resource:
+          type: string
+          example: engagements
+        action:
+          type: string
+          enum: [create, read, update, delete, export]
+          example: read
+        description:
+          type: string
+
+    Role:
+      type: object
+      required:
+        - id
+        - name
+        - type
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Engagement Manager
+        type:
+          type: string
+          enum: [system, custom]
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+        user_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    # Engagement Schemas
+    Engagement:
+      type: object
+      required:
+        - id
+        - vasp_tenant_id
+        - auditor_tenant_id
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        vasp_tenant_id:
+          type: string
+          format: uuid
+        vasp_name:
+          type: string
+        auditor_tenant_id:
+          type: string
+          format: uuid
+        auditor_name:
+          type: string
+        status:
+          type: string
+          enum: [planning, data_collection, verification, reporting, completed]
+          example: data_collection
+        audit_date:
+          type: string
+          format: date
+          description: Snapshot date for the audit
+        engagement_type:
+          type: string
+          enum: [full_audit, limited_scope, attestation]
+          example: full_audit
+        scope:
+          type: object
+          properties:
+            assets:
+              type: array
+              items:
+                type: string
+              description: Asset symbols in scope
+            wallets:
+              type: array
+              items:
+                type: string
+            blockchains:
+              type: array
+              items:
+                type: string
+        notes:
+          type: string
+        total_assets_usd:
+          type: number
+          format: double
+          example: 1500000.00
+        asset_count:
+          type: integer
+        wallet_count:
+          type: integer
+        customer_count:
+          type: integer
+        reserve_ratio:
+          type: number
+          format: double
+          description: Latest reserve ratio percentage
+          example: 101.5
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    EngagementCreate:
+      type: object
+      required:
+        - vasp_tenant_id
+        - auditor_tenant_id
+        - audit_date
+        - engagement_type
+      properties:
+        vasp_tenant_id:
+          type: string
+          format: uuid
+        auditor_tenant_id:
+          type: string
+          format: uuid
+        audit_date:
+          type: string
+          format: date
+        engagement_type:
+          type: string
+          enum: [full_audit, limited_scope, attestation]
+        scope:
+          type: object
+          properties:
+            assets:
+              type: array
+              items:
+                type: string
+            blockchains:
+              type: array
+              items:
+                type: string
+        notes:
+          type: string
+
+    EngagementUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [planning, data_collection, verification, reporting, completed]
+        notes:
+          type: string
+        scope:
+          type: object
+
+    EngagementResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Engagement'
+
+    EngagementStatusUpdate:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [planning, data_collection, verification, reporting, completed]
+        notes:
+          type: string
+
+    # Asset Schemas
+    CryptoAsset:
+      type: object
+      required:
+        - id
+        - symbol
+        - name
+        - asset_type
+      properties:
+        id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: BTC
+        name:
+          type: string
+          example: Bitcoin
+        asset_type:
+          type: string
+          enum: [tier_1, tier_2, tier_3]
+          example: tier_1
+        blockchains:
+          type: array
+          items:
+            type: string
+          example: [bitcoin]
+        contract_addresses:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            ethereum: '0x0000000000000000000000000000000000000000'
+        decimals:
+          type: integer
+          example: 8
+        logo_url:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+
+    AssetCreate:
+      type: object
+      required:
+        - symbol
+        - name
+        - asset_type
+        - blockchains
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        asset_type:
+          type: string
+          enum: [tier_1, tier_2, tier_3]
+        blockchains:
+          type: array
+          items:
+            type: string
+        contract_addresses:
+          type: object
+          additionalProperties:
+            type: string
+        decimals:
+          type: integer
+        logo_url:
+          type: string
+          format: uri
+
+    AssetUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        asset_type:
+          type: string
+          enum: [tier_1, tier_2, tier_3]
+        blockchains:
+          type: array
+          items:
+            type: string
+        contract_addresses:
+          type: object
+          additionalProperties:
+            type: string
+
+    # Wallet Schemas
+    WalletAddress:
+      type: object
+      required:
+        - id
+        - address
+        - blockchain
+        - asset_symbol
+        - label
+      properties:
+        id:
+          type: string
+          format: uuid
+        address:
+          type: string
+          example: '1A1z7agoat2LRGH3EiJjP73yq6fsKSvxzu'
+        blockchain:
+          type: string
+          example: bitcoin
+        asset_symbol:
+          type: string
+          example: BTC
+        label:
+          type: string
+          description: Human-readable label for the wallet
+          example: Exchange Reserve - Cold Storage 1
+        wallet_type:
+          type: string
+          enum: [cold_storage, hot_wallet, custody, other]
+        reported_balance:
+          type: string
+          format: decimal
+          example: '15.5'
+        on_chain_balance:
+          type: string
+          format: decimal
+        balance_usd:
+          type: number
+          format: double
+        variance:
+          type: number
+          format: double
+          description: Percentage difference between reported and on-chain
+        verified_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    AssetBalance:
+      type: object
+      required:
+        - asset_symbol
+        - total_reported_balance
+        - total_on_chain_balance
+        - wallet_count
+      properties:
+        asset_symbol:
+          type: string
+        asset_name:
+          type: string
+        total_reported_balance:
+          type: string
+          format: decimal
+        total_on_chain_balance:
+          type: string
+          format: decimal
+        total_balance_usd:
+          type: number
+          format: double
+        variance_percentage:
+          type: number
+          format: double
+        wallet_count:
+          type: integer
+        verified_count:
+          type: integer
+        wallets:
+          type: array
+          items:
+            $ref: '#/components/schemas/WalletAddress'
+
+    # Customer Liability Schemas
+    CustomerLiability:
+      type: object
+      required:
+        - id
+        - engagement_id
+        - customer_account_id
+        - asset_symbol
+        - reported_balance
+      properties:
+        id:
+          type: string
+          format: uuid
+        engagement_id:
+          type: string
+          format: uuid
+        customer_account_id:
+          type: string
+          description: Exchange's internal customer identifier
+        customer_label:
+          type: string
+        asset_symbol:
+          type: string
+        account_type:
+          type: string
+          enum: [spot, margin, earning, staking, other]
+        reported_balance:
+          type: string
+          format: decimal
+        balance_usd:
+          type: number
+          format: double
+        verified:
+          type: boolean
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # Reserve & Ratio Schemas
+    ReserveRatio:
+      type: object
+      required:
+        - engagement_id
+        - asset_symbol
+        - total_customer_liability
+        - total_reserved_balance
+        - reserve_ratio
+      properties:
+        engagement_id:
+          type: string
+          format: uuid
+        asset_symbol:
+          type: string
+        asset_name:
+          type: string
+        total_customer_liability:
+          type: string
+          format: decimal
+        total_reserved_balance:
+          type: string
+          format: decimal
+        reserve_ratio:
+          type: number
+          format: double
+          description: Percentage of liabilities covered by reserves
+        liability_usd:
+          type: number
+          format: double
+        reserves_usd:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [compliant, warning, critical]
+          description: Status based on minimum reserve requirements
+        last_updated_at:
+          type: string
+          format: date-time
+
+    ReserveSummary:
+      type: object
+      required:
+        - engagement_id
+        - total_liabilities_usd
+        - total_reserves_usd
+        - overall_reserve_ratio
+        - asset_count
+      properties:
+        engagement_id:
+          type: string
+          format: uuid
+        total_liabilities_usd:
+          type: number
+          format: double
+        total_reserves_usd:
+          type: number
+          format: double
+        overall_reserve_ratio:
+          type: number
+          format: double
+        asset_count:
+          type: integer
+        asset_ratios:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReserveRatio'
+        compliance_status:
+          type: string
+          enum: [compliant, warning, critical]
+        flagged_assets:
+          type: array
+          items:
+            type: object
+            properties:
+              asset_symbol:
+                type: string
+              reason:
+                type: string
+              ratio:
+                type: number
+
+    ReconciliationRecord:
+      type: object
+      required:
+        - id
+        - engagement_id
+        - date
+        - total_liability_usd
+        - total_reserves_usd
+      properties:
+        id:
+          type: string
+          format: uuid
+        engagement_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        total_liability_usd:
+          type: number
+          format: double
+        total_reserves_usd:
+          type: number
+          format: double
+        overall_ratio:
+          type: number
+          format: double
+        asset_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReserveRatio'
+
+    # Merkle Tree Schemas
+    MerkleTree:
+      type: object
+      required:
+        - id
+        - engagement_id
+        - root_hash
+        - leaf_count
+      properties:
+        id:
+          type: string
+          format: uuid
+        engagement_id:
+          type: string
+          format: uuid
+        root_hash:
+          type: string
+          description: Root hash of the Merkle tree
+        leaf_count:
+          type: integer
+          description: Number of customer records in tree
+        tree_depth:
+          type: integer
+        hash_algorithm:
+          type: string
+          example: SHA256
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MerkleProof:
+      type: object
+      required:
+        - customer_id
+        - balance
+        - proof
+      properties:
+        customer_id:
+          type: string
+        balance:
+          type: string
+          format: decimal
+        leaf_index:
+          type: integer
+        proof:
+          type: array
+          items:
+            type: string
+          description: Array of sibling hashes to reconstruct root
+
+    MerkleVerification:
+      type: object
+      required:
+        - is_valid
+        - root_hash
+      properties:
+        is_valid:
+          type: boolean
+        root_hash:
+          type: string
+        customer_count:
+          type: integer
+        verified_customers:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: object
+
+    # Blockchain Verification Schemas
+    DeFiPosition:
+      type: object
+      required:
+        - id
+        - engagement_id
+        - protocol_name
+        - position_type
+        - balance
+      properties:
+        id:
+          type: string
+          format: uuid
+        engagement_id:
+          type: string
+          format: uuid
+        protocol_name:
+          type: string
+          example: Aave
+        position_type:
+          type: string
+          enum: [lending, borrowing, liquidity_pool, staking]
+        blockchain:
+          type: string
+          example: ethereum
+        wallet_address:
+          type: string
+        asset_symbol:
+          type: string
+        balance:
+          type: string
+          format: decimal
+        balance_usd:
+          type: number
+          format: double
+        apy_percentage:
+          type: number
+          format: double
+        verified:
+          type: boolean
+        verified_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    BlockchainVerificationResult:
+      type: object
+      required:
+        - verified
+        - blockchain
+        - reported_balance
+      properties:
+        verified:
+          type: boolean
+        blockchain:
+          type: string
+        address:
+          type: string
+        reported_balance:
+          type: string
+          format: decimal
+        on_chain_balance:
+          type: string
+          format: decimal
+        variance_percentage:
+          type: number
+          format: double
+        last_verified_block:
+          type: integer
+        verification_timestamp:
+          type: string
+          format: date-time
+
+    # Report Schemas
+    AuditReport:
+      type: object
+      required:
+        - id
+        - engagement_id
+        - report_type
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        engagement_id:
+          type: string
+          format: uuid
+        report_type:
+          type: string
+          enum: [por, assurance, management_letter, customer_summary]
+        status:
+          type: string
+          enum: [draft, in_review, finalized, issued]
+        title:
+          type: string
+        summary:
+          type: string
+        file_url:
+          type: string
+          format: uri
+        pages:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          format: uuid
+
+    # Audit Log Schemas
+    AuditLog:
+      type: object
+      required:
+        - id
+        - user_id
+        - action
+        - resource_type
+        - timestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        user_email:
+          type: string
+          format: email
+        action:
+          type: string
+          enum: [create, read, update, delete, export, verify, generate]
+        resource_type:
+          type: string
+        resource_id:
+          type: string
+          format: uuid
+        details:
+          type: object
+          additionalProperties: true
+        ip_address:
+          type: string
+          format: ipv4
+        user_agent:
+          type: string
+        status:
+          type: string
+          enum: [success, failure]
+        timestamp:
+          type: string
+          format: date-time
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ============ AUTH ENDPOINTS ============
+  /auth/login:
+    post:
+      summary: User login
+      description: Authenticate user with email and password, optionally with MFA
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Token'
+        '400':
+          description: Invalid credentials or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many login attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/register:
+    post:
+      summary: User registration
+      description: Register a new user account
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      description: Obtain new access token using refresh token
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Token'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      summary: Logout user
+      description: Invalidate current session and refresh token
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/mfa/setup:
+    post:
+      summary: Setup MFA
+      description: Initialize MFA setup for user account
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFASetupRequest'
+      responses:
+        '200':
+          description: MFA setup initialized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MFASetupResponse'
+        '400':
+          description: Invalid MFA method
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/mfa/verify:
+    post:
+      summary: Verify MFA code
+      description: Complete MFA setup or verify MFA during login
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFAVerifyRequest'
+      responses:
+        '200':
+          description: MFA verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: MFA verified successfully
+        '400':
+          description: Invalid code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ USERS ENDPOINTS ============
+  /users:
+    get:
+      summary: List users
+      description: Get paginated list of users with filtering and sorting
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, suspended]
+        - name: role_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          description: Search by email or name
+          schema:
+            type: string
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [created_at, email, last_login_at]
+            default: created_at
+      responses:
+        '200':
+          description: User list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create user
+      description: Create a new user account
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/me:
+    get:
+      summary: Get current user
+      description: Get authenticated user's profile
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}:
+    get:
+      summary: Get user by ID
+      description: Retrieve a specific user's information
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update user
+      description: Update user profile information
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Deactivate user
+      description: Deactivate a user account (soft delete)
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User deactivated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User deactivated successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}/roles:
+    put:
+      summary: Assign roles to user
+      description: Update user's role assignments
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role_ids
+              properties:
+                role_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Roles assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ TENANTS ENDPOINTS ============
+  /tenants:
+    get:
+      summary: List tenants
+      description: Get list of accessible tenants
+      tags:
+        - Tenants
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [vasp, auditor, regulator]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, suspended]
+      responses:
+        '200':
+          description: Tenant list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tenant'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create tenant
+      description: Create a new tenant organization
+      tags:
+        - Tenants
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreate'
+      responses:
+        '201':
+          description: Tenant created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tenants/{id}:
+    get:
+      summary: Get tenant details
+      description: Retrieve specific tenant information
+      tags:
+        - Tenants
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tenant retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tenant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update tenant
+      description: Update tenant information
+      tags:
+        - Tenants
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUpdate'
+      responses:
+        '200':
+          description: Tenant updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tenants/{id}/members:
+    get:
+      summary: List tenant members
+      description: Get members of a specific tenant
+      tags:
+        - Tenants
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Member list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TenantMember'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tenants/{id}/settings:
+    put:
+      summary: Update tenant settings
+      description: Update tenant configuration and preferences
+      tags:
+        - Tenants
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settings:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ ENGAGEMENTS ENDPOINTS ============
+  /engagements:
+    get:
+      summary: List engagements
+      description: Get paginated list of engagements
+      tags:
+        - Engagements
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [planning, data_collection, verification, reporting, completed]
+        - name: vasp_tenant_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: auditor_tenant_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Engagement list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Engagement'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create engagement
+      description: Create a new audit engagement
+      tags:
+        - Engagements
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EngagementCreate'
+      responses:
+        '201':
+          description: Engagement created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngagementResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}:
+    get:
+      summary: Get engagement details
+      description: Retrieve specific engagement information
+      tags:
+        - Engagements
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Engagement retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngagementResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Engagement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update engagement
+      description: Update engagement information
+      tags:
+        - Engagements
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EngagementUpdate'
+      responses:
+        '200':
+          description: Engagement updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngagementResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete engagement
+      description: Delete an engagement
+      tags:
+        - Engagements
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Engagement deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Engagement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/status:
+    put:
+      summary: Update engagement status
+      description: Update the status of an engagement
+      tags:
+        - Engagements
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EngagementStatusUpdate'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngagementResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/assets:
+    post:
+      summary: Add assets to engagement
+      description: Bulk add crypto assets to engagement scope
+      tags:
+        - Engagements
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - asset_ids
+              properties:
+                asset_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Assets added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngagementResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/timeline:
+    get:
+      summary: Get engagement timeline
+      description: Get timeline of status changes for engagement
+      tags:
+        - Engagements
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Timeline retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                        changed_at:
+                          type: string
+                          format: date-time
+                        changed_by:
+                          type: string
+                          format: uuid
+                        notes:
+                          type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/summary:
+    get:
+      summary: Get engagement summary
+      description: Get overview and key metrics for engagement
+      tags:
+        - Engagements
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Summary retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                      total_assets_usd:
+                        type: number
+                      asset_count:
+                        type: integer
+                      wallet_count:
+                        type: integer
+                      customer_count:
+                        type: integer
+                      reserve_ratio:
+                        type: number
+                      completion_percentage:
+                        type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ ASSETS ENDPOINTS ============
+  /assets:
+    get:
+      summary: List crypto assets
+      description: Get list of supported cryptocurrencies
+      tags:
+        - Assets
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: asset_type
+          in: query
+          schema:
+            type: string
+            enum: [tier_1, tier_2, tier_3]
+        - name: search
+          in: query
+          description: Search by symbol or name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Asset list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CryptoAsset'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create asset
+      description: Create a new supported crypto asset
+      tags:
+        - Assets
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetCreate'
+      responses:
+        '201':
+          description: Asset created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CryptoAsset'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assets/{id}:
+    get:
+      summary: Get asset details
+      description: Retrieve specific asset information
+      tags:
+        - Assets
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Asset retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CryptoAsset'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Asset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update asset
+      description: Update asset information
+      tags:
+        - Assets
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetUpdate'
+      responses:
+        '200':
+          description: Asset updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CryptoAsset'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assets/bulk-import:
+    post:
+      summary: Bulk import assets
+      description: Bulk import multiple crypto assets
+      tags:
+        - Assets
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assets
+              properties:
+                assets:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AssetCreate'
+      responses:
+        '200':
+          description: Assets imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      imported:
+                        type: integer
+                      failed:
+                        type: integer
+                      errors:
+                        type: array
+                        items:
+                          type: object
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assets/{id}/wallets:
+    get:
+      summary: Get asset wallets
+      description: Get all wallets holding a specific asset
+      tags:
+        - Assets
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: engagement_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Wallets retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AssetBalance'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assets/{id}/verify-balance:
+    post:
+      summary: Verify asset balance
+      description: Verify on-chain balance for an asset across all wallets
+      tags:
+        - Assets
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - engagement_id
+              properties:
+                engagement_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Balance verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AssetBalance'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ RESERVES ENDPOINTS ============
+  /engagements/{id}/reserves:
+    get:
+      summary: Get reserve summary
+      description: Get reserve verification summary for engagement
+      tags:
+        - Reserves
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reserve summary retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReserveSummary'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/reserves/calculate:
+    post:
+      summary: Calculate reserve ratios
+      description: Recalculate reserve ratios for engagement
+      tags:
+        - Reserves
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ratios calculated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReserveSummary'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/reserves/ratio-table:
+    get:
+      summary: Get reserve ratio table
+      description: Get full detailed reserve ratio table
+      tags:
+        - Reserves
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ratio table retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReserveRatio'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/reserves/verify-segregation:
+    post:
+      summary: Verify fund segregation
+      description: Verify customer funds are properly segregated
+      tags:
+        - Reserves
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Segregation verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      is_segregated:
+                        type: boolean
+                      findings:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/reserves/reconciliation:
+    get:
+      summary: Get reconciliation data
+      description: Get 30-day reconciliation records
+      tags:
+        - Reserves
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reconciliation data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReconciliationRecord'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ MERKLE ENDPOINTS ============
+  /engagements/{id}/merkle/generate:
+    post:
+      summary: Generate Merkle tree
+      description: Generate Merkle tree for customer liabilities
+      tags:
+        - Merkle
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Merkle tree generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MerkleTree'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/merkle/root:
+    get:
+      summary: Get Merkle root hash
+      description: Get the root hash of the Merkle tree
+      tags:
+        - Merkle
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Root hash retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - root_hash
+                      - engagement_id
+                    properties:
+                      root_hash:
+                        type: string
+                      engagement_id:
+                        type: string
+                      tree_hash_algorithm:
+                        type: string
+                      generated_at:
+                        type: string
+                        format: date-time
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/merkle/stats:
+    get:
+      summary: Get Merkle tree statistics
+      description: Get statistics about the Merkle tree
+      tags:
+        - Merkle
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Statistics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      leaf_count:
+                        type: integer
+                      tree_depth:
+                        type: integer
+                      root_hash:
+                        type: string
+                      hash_algorithm:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /merkle/verify:
+    post:
+      summary: Public Merkle verification
+      description: Verify customer balance in Merkle tree (public endpoint)
+      tags:
+        - Merkle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - root_hash
+                - customer_id
+                - balance
+                - proof
+              properties:
+                root_hash:
+                  type: string
+                customer_id:
+                  type: string
+                balance:
+                  type: string
+                  format: decimal
+                proof:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Verification complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MerkleVerification'
+        '400':
+          description: Invalid proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ BLOCKCHAIN ENDPOINTS ============
+  /blockchain/verify-address:
+    post:
+      summary: Verify blockchain address
+      description: Verify ownership and control of blockchain address
+      tags:
+        - Blockchain
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+                - blockchain
+              properties:
+                address:
+                  type: string
+                blockchain:
+                  type: string
+                signature:
+                  type: string
+                  description: Optional signature for control proof
+      responses:
+        '200':
+          description: Address verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BlockchainVerificationResult'
+        '400':
+          description: Invalid address or blockchain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /blockchain/verify-balance:
+    post:
+      summary: Verify on-chain balance
+      description: Verify asset balance on blockchain
+      tags:
+        - Blockchain
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+                - blockchain
+                - asset_symbol
+              properties:
+                address:
+                  type: string
+                blockchain:
+                  type: string
+                asset_symbol:
+                  type: string
+      responses:
+        '200':
+          description: Balance verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BlockchainVerificationResult'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /blockchain/verify-control:
+    post:
+      summary: Verify control of address
+      description: Prove control of blockchain address via signature
+      tags:
+        - Blockchain
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+                - blockchain
+                - signature
+                - message
+              properties:
+                address:
+                  type: string
+                blockchain:
+                  type: string
+                signature:
+                  type: string
+                message:
+                  type: string
+      responses:
+        '200':
+          description: Control verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      verified:
+                        type: boolean
+                      signer_address:
+                        type: string
+        '400':
+          description: Invalid signature or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /blockchain/supported-chains:
+    get:
+      summary: List supported blockchains
+      description: Get list of supported blockchain networks
+      tags:
+        - Blockchain
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Chains retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        chain_id:
+                          type: integer
+                        rpc_url:
+                          type: string
+                          format: uri
+                        explorer_url:
+                          type: string
+                          format: uri
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /blockchain/defi/verify-position:
+    post:
+      summary: Verify DeFi position
+      description: Verify customer DeFi position (lending, borrowing, LP, staking)
+      tags:
+        - Blockchain
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - engagement_id
+                - wallet_address
+                - protocol_name
+                - position_type
+              properties:
+                engagement_id:
+                  type: string
+                  format: uuid
+                wallet_address:
+                  type: string
+                protocol_name:
+                  type: string
+                position_type:
+                  type: string
+                  enum: [lending, borrowing, liquidity_pool, staking]
+                blockchain:
+                  type: string
+      responses:
+        '200':
+          description: Position verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeFiPosition'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ REPORTS ENDPOINTS ============
+  /engagements/{id}/reports/por:
+    post:
+      summary: Generate PoR report
+      description: Generate Proof of Reserves report
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                include_merkle:
+                  type: boolean
+                  default: true
+                include_dex_positions:
+                  type: boolean
+                  default: false
+                custom_sections:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuditReport'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/reports/assurance:
+    post:
+      summary: Generate assurance report
+      description: Generate auditor's assurance/attestation report
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                opinion_level:
+                  type: string
+                  enum: [reasonable, limited]
+                  default: reasonable
+                findings:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuditReport'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/reports/management-letter:
+    post:
+      summary: Generate management letter
+      description: Generate auditor's management letter with observations
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Letter generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuditReport'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /engagements/{id}/reports/customer-summary:
+    post:
+      summary: Generate customer summary
+      description: Generate summary report for customers/public
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Summary generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuditReport'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reports/{id}/download:
+    get:
+      summary: Download report
+      description: Download generated report as PDF
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Report PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ AI ENDPOINTS ============
+  /ai/analyze:
+    post:
+      summary: Anomaly analysis
+      description: AI-powered anomaly detection in audit data
+      tags:
+        - AI
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - engagement_id
+              properties:
+                engagement_id:
+                  type: string
+                  format: uuid
+                focus_areas:
+                  type: array
+                  items:
+                    type: string
+                  description: Specific areas to analyze
+      responses:
+        '200':
+          description: Analysis complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      anomalies:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                            severity:
+                              type: string
+                              enum: [low, medium, high, critical]
+                            description:
+                              type: string
+                      confidence:
+                        type: number
+                        format: double
+                      summary:
+                        type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ai/generate-narrative:
+    post:
+      summary: Generate report narrative
+      description: AI-generated narrative for audit report
+      tags:
+        - AI
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - engagement_id
+              properties:
+                engagement_id:
+                  type: string
+                  format: uuid
+                section:
+                  type: string
+                  description: Report section to generate
+                tone:
+                  type: string
+                  enum: [formal, professional, executive]
+      responses:
+        '200':
+          description: Narrative generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      narrative:
+                        type: string
+                      word_count:
+                        type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ai/compliance-check:
+    post:
+      summary: VARA compliance check
+      description: Check audit against VARA compliance requirements
+      tags:
+        - AI
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - engagement_id
+              properties:
+                engagement_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Compliance check complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      compliant:
+                        type: boolean
+                      requirements:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            requirement:
+                              type: string
+                            met:
+                              type: boolean
+                            notes:
+                              type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ai/chat:
+    post:
+      summary: Audit assistant chat
+      description: Conversational AI for audit assistance
+      tags:
+        - AI
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                engagement_id:
+                  type: string
+                  format: uuid
+                  description: Optional engagement context
+                conversation_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Response generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      response:
+                        type: string
+                      conversation_id:
+                        type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ai/insights/{engagement_id}:
+    get:
+      summary: Get AI insights
+      description: Get AI-generated insights for engagement
+      tags:
+        - AI
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: engagement_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Insights retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      key_findings:
+                        type: array
+                        items:
+                          type: string
+                      risks:
+                        type: array
+                        items:
+                          type: object
+                      recommendations:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ ADMIN ENDPOINTS ============
+  /admin/dashboard:
+    get:
+      summary: Admin dashboard
+      description: Get admin dashboard metrics and data
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      total_users:
+                        type: integer
+                      total_tenants:
+                        type: integer
+                      active_engagements:
+                        type: integer
+                      reports_generated:
+                        type: integer
+                      system_health:
+                        type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/roles:
+    get:
+      summary: List roles
+      description: Get all system and custom roles
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Roles retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create custom role
+      description: Create a new custom role
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - permission_ids
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                permission_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '201':
+          description: Role created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Role'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/roles/{id}/permissions:
+    put:
+      summary: Update role permissions
+      description: Update permissions for a role
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permission_ids
+              properties:
+                permission_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Permissions updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Role'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/audit-log:
+    get:
+      summary: Get audit log
+      description: Get system audit log with filtering
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: resource_type
+          in: query
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Audit log retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ ONBOARDING ENDPOINTS ============
+  /onboarding/vasp:
+    post:
+      summary: Register VASP
+      description: Register a new VASP for platform onboarding
+      tags:
+        - Onboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - company_name
+                - contact_email
+                - jurisdiction
+              properties:
+                company_name:
+                  type: string
+                contact_email:
+                  type: string
+                  format: email
+                jurisdiction:
+                  type: string
+                vara_license_number:
+                  type: string
+                website:
+                  type: string
+                  format: uri
+      responses:
+        '201':
+          description: VASP registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      tenant_id:
+                        type: string
+                        format: uuid
+                      onboarding_token:
+                        type: string
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '409':
+          description: VASP already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /onboarding/import-assets:
+    post:
+      summary: Import assets during onboarding
+      description: Import crypto assets for a VASP during onboarding
+      tags:
+        - Onboarding
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assets
+              properties:
+                assets:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - symbol
+                      - blockchain
+                    properties:
+                      symbol:
+                        type: string
+                      blockchain:
+                        type: string
+                      wallet_addresses:
+                        type: array
+                        items:
+                          type: string
+      responses:
+        '200':
+          description: Assets imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      imported:
+                        type: integer
+                      failed:
+                        type: integer
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /onboarding/import-wallets:
+    post:
+      summary: Import wallets during onboarding
+      description: Import wallet addresses for assets
+      tags:
+        - Onboarding
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - wallets
+              properties:
+                wallets:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - address
+                      - blockchain
+                      - asset_symbol
+                      - label
+                    properties:
+                      address:
+                        type: string
+                      blockchain:
+                        type: string
+                      asset_symbol:
+                        type: string
+                      label:
+                        type: string
+                      wallet_type:
+                        type: string
+      responses:
+        '200':
+          description: Wallets imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      imported:
+                        type: integer
+                      failed:
+                        type: integer
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /onboarding/import-liabilities:
+    post:
+      summary: Import customer liabilities
+      description: Import customer liability records
+      tags:
+        - Onboarding
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - liabilities
+              properties:
+                liabilities:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - customer_account_id
+                      - asset_symbol
+                      - balance
+                    properties:
+                      customer_account_id:
+                        type: string
+                      customer_label:
+                        type: string
+                      asset_symbol:
+                        type: string
+                      account_type:
+                        type: string
+                      balance:
+                        type: string
+                        format: decimal
+      responses:
+        '200':
+          description: Liabilities imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      imported:
+                        type: integer
+                      failed:
+                        type: integer
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /onboarding/status:
+    get:
+      summary: Get onboarding status
+      description: Get onboarding completion status
+      tags:
+        - Onboarding
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Status retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      stage:
+                        type: string
+                        enum: [registration, assets, wallets, liabilities, complete]
+                      progress_percentage:
+                        type: integer
+                      completed_steps:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /onboarding/validate:
+    post:
+      summary: Validate onboarding data
+      description: Validate all imported data before finalizing
+      tags:
+        - Onboarding
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Validation complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      valid:
+                        type: boolean
+                      errors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            field:
+                              type: string
+                            message:
+                              type: string
+                      warnings:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
